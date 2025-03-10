@@ -5,7 +5,7 @@ This repository contains practical examples and code for learning about Apache K
 ## Important: Cost-Free Implementation
 
 This lab has been designed to run **completely free of charge** by using:
-1. Docker for Kafka
+1. Docker for Kafka (or local Kafka on macOS)
 2. LocalStack for AWS Kinesis simulation
 
 You will **not** need to use real AWS services or incur any charges. Everything runs locally on your machine.
@@ -14,16 +14,6 @@ You will **not** need to use real AWS services or incur any charges. Everything 
 
 - Python 3.6+
 - Docker and Docker Compose
-- Basic understanding of messaging systems
-
-## Complete Setup Instructions (From Scratch)# Kafka and Kinesis Lab
-
-This repository contains practical examples and code for learning about Apache Kafka and Amazon Kinesis streaming platforms. The lab is designed to be completed in approximately one hour and covers the basics of both platforms with hands-on examples.
-
-## Prerequisites
-
-- Python 3.6+
-- AWS account (for Kinesis examples)
 - Basic understanding of messaging systems
 
 ## Complete Setup Instructions (From Scratch)
@@ -53,13 +43,13 @@ sudo apt install python3 python3-pip
 1. Download [Docker Desktop for Windows](https://www.docker.com/products/docker-desktop)
 2. Run the installer and follow the prompts
 3. After installation, Docker Compose is included
-4. Verify installation: `docker --version` and `docker-compose --version`
+4. Verify installation: `docker --version` and `docker compose --version`
 
 #### macOS:
 1. Download [Docker Desktop for Mac](https://www.docker.com/products/docker-desktop)
 2. Install the application and launch it
 3. After installation, Docker Compose is included
-4. Verify installation: `docker --version` and `docker-compose --version`
+4. Verify installation: `docker --version` and `docker compose --version`
 
 #### Linux (Ubuntu/Debian):
 ```bash
@@ -100,7 +90,7 @@ When you start the lab with Docker Compose, LocalStack will automatically be set
 
 ```bash
 # If you have git installed:
-git clone https://github.com/aysegulrana/kafka-kinesis-lab.git
+git clone https://github.com/yourusername/kafka-kinesis-lab.git
 cd kafka-kinesis-lab
 
 # Alternatively, download and extract the zip file from the repository
@@ -109,28 +99,85 @@ cd kafka-kinesis-lab
 ### 5. Install Python Dependencies
 
 ```bash
+# Option 1: Install globally
+pip install -r requirements.txt
+
+# Option 2: Set up a virtual environment (recommended)
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 6. Start Docker Containers (Kafka & LocalStack)
+## Setup Based on Operating System
 
-Start Kafka, Zookeeper, and LocalStack using Docker Compose:
+### Standard Setup (Windows/Linux)
 
 ```bash
-docker-compose up -d
+# Start Kafka, Zookeeper, and LocalStack using Docker Compose
+docker compose up -d
+
+# Wait about 30 seconds for services to initialize
 ```
 
-Verify all services are running:
+### macOS Setup (Alternative)
+
+macOS users may experience issues with Docker networking and Kafka. If you encounter problems, follow these alternative steps:
+
+#### Automated Setup for macOS (Recommended)
+
+We've created an automated setup script for macOS that will:
+1. Set up a Python virtual environment
+2. Install all dependencies
+3. Install Kafka and ZooKeeper using Homebrew
+4. Configure LocalStack for Kinesis
+5. Create helper scripts to start and stop the lab environment
+
+To use the automated setup:
+
 ```bash
-docker ps
-```
-You should see containers for Kafka, Zookeeper, and LocalStack running.
+# Make the script executable
+chmod +x setup_mac.sh
 
-Wait about 30 seconds for the services to fully initialize. LocalStack will automatically create the necessary Kinesis streams during startup.
+# Run the setup script
+./setup_mac.sh
+```
+
+After running the setup script, you can:
+- Start the lab: `source ./activate_lab.sh`
+- Stop the lab: `./stop_lab.sh`
+
+#### Manual Setup for macOS
+
+If you prefer to set up manually on macOS:
+
+1. Install Kafka using Homebrew:
+   ```bash
+   brew install kafka
+   ```
+
+2. Start the services:
+   ```bash
+   # Start LocalStack
+   docker compose -f docker-compose-simple.yml up -d
+   
+   # Start ZooKeeper
+   zookeeper-server-start /usr/local/etc/kafka/zookeeper.properties &
+   
+   # Wait for ZooKeeper to start
+   sleep 10
+   
+   # Start Kafka
+   kafka-server-start /usr/local/etc/kafka/server.properties &
+   ```
 
 ## Running the Examples
 
 ### Kafka Examples
+
+Before running the examples, make sure you're in the same environment where you did the requirements installation. If you used a virtual environment, activate it first.
+```bash
+source venv/bin/activate
+```
 
 1. Run the Kafka producer:
 
@@ -170,6 +217,14 @@ python kinesis_examples.py consumer
 python kinesis_examples.py analytics
 ```
 
+### Kafka to Kinesis Bridge
+
+To demonstrate streaming data from Kafka to Kinesis:
+
+```bash
+python kafka_to_kinesis.py
+```
+
 ### Performance Testing
 
 To run performance tests comparing Kafka and Kinesis:
@@ -182,20 +237,49 @@ This will conduct throughput and latency tests for both producers and consumers,
 
 ## Lab Architecture
 
-- `docker-compose.yml` - Docker configuration for Kafka
+This lab uses the following architecture:
+
+```
+┌────────────────┐     ┌────────────────┐     ┌────────────────┐
+│                │     │                │     │                │
+│  Kafka         │     │  LocalStack    │     │  Python        │
+│  (Docker/Local)│     │  (Docker)      │     │  Examples      │
+│                │     │                │     │                │
+│  - Zookeeper   │     │  - Kinesis     │     │  - Producer    │
+│  - Broker      │     │    simulation  │     │  - Consumer    │
+│                │     │                │     │  - Analytics   │
+└───────┬────────┘     └───────┬────────┘     └───────┬────────┘
+        │                      │                      │
+        └──────────────────────┼──────────────────────┘
+                               │
+                      ┌────────┴────────┐
+                      │                 │
+                      │  Kafka-to-      │
+                      │  Kinesis Bridge │
+                      │                 │
+                      └─────────────────┘
+```
+
+## Lab Structure
+
+- `docker-compose.yml` - Docker configuration for Kafka and LocalStack
+- `docker-compose-simple.yml` - Simplified Docker configuration for LocalStack only (macOS)
+- `setup_mac.sh` - Automated setup script for macOS
 - `requirements.txt` - Python dependencies
-- `config.py` - Configuration for Kafka and Kinesis
+- `config.py` - Configuration for Kafka and Kinesis/LocalStack
 - `kafka_examples.py` - Examples for Kafka producer, consumer, and analytics
 - `kinesis_examples.py` - Examples for Kinesis producer, consumer, and analytics
 - `kafka_to_kinesis.py` - Example showing how to bridge Kafka to Kinesis
+- `performance_tests.py` - Script to test and compare Kafka and Kinesis performance
 
 ## Key Concepts Covered
 
-- Setting up Kafka and Kinesis
+- Setting up Kafka and Kinesis environments
 - Message production and consumption in both platforms
-- Partitioning and sharding
+- Partitioning (Kafka) and sharding (Kinesis)
 - Real-time analytics pipeline implementation
 - Fault tolerance and scalability
+- AWS service emulation using LocalStack
 
 ## Troubleshooting
 
@@ -204,53 +288,76 @@ This will conduct throughput and latency tests for both producers and consumers,
 1. **Docker service not starting:**
    ```bash
    # Check Docker service status
-   systemctl status docker
+   systemctl status docker  # Linux
    
    # Try restarting Docker
-   sudo systemctl restart docker
+   sudo systemctl restart docker  # Linux
+   # Or restart Docker Desktop on Windows/Mac
    ```
 
 2. **Permission denied errors:**
    ```bash
    # Add your user to the docker group
    sudo usermod -aG docker $USER
-   # Log out and log back in
+   # Log out and log back in for this to take effect
    ```
 
 3. **Port conflicts:**
    ```bash
    # Check if something is using the required ports
-   sudo netstat -tulpn | grep 9092
-   sudo netstat -tulpn | grep 2181
+   # Linux/macOS:
+   lsof -i:9092
+   lsof -i:2181
    
-   # Stop the conflicting service or change the port in docker-compose.yml
+   # Windows:
+   netstat -ano | findstr 9092
+   netstat -ano | findstr 2181
    ```
 
-### AWS/Kinesis Issues
+### macOS-specific Kafka Issues
 
-1. **AWS credentials not found:**
+1. **Ensure Kafka and ZooKeeper are running:**
    ```bash
-   # Check if credentials file exists
-   ls -la ~/.aws/
+   # Check if ZooKeeper is running
+   lsof -i:2181
    
-   # Manually create/edit the credentials file
-   mkdir -p ~/.aws
-   nano ~/.aws/credentials
+   # Check if Kafka is running
+   lsof -i:9092
    
-   # Add your credentials:
-   [default]
-   aws_access_key_id=YOUR_ACCESS_KEY
-   aws_secret_access_key=YOUR_SECRET_KEY
+   # If not running, start them again
+   zookeeper-server-start /usr/local/etc/kafka/zookeeper.properties &
+   kafka-server-start /usr/local/etc/kafka/server.properties &
    ```
 
-2. **Kinesis "resource not found" errors:**
-   - Ensure your IAM user has the correct permissions
-   - Check if you're in the correct AWS region
-   - Verify the stream name is correct
+2. **"NoBrokersAvailable" error on macOS:**
+   Edit your `/usr/local/etc/kafka/server.properties` file to ensure:
+   ```
+   advertised.listeners=PLAINTEXT://localhost:9092
+   listeners=PLAINTEXT://0.0.0.0:9092
+   ```
 
-3. **Throttling errors:**
-   - Reduce the rate of requests in the examples
-   - Request a service limit increase for Kinesis
+### LocalStack Issues
+
+1. **Ensure LocalStack is running:**
+   ```bash
+   docker ps | grep localstack
+   
+   # If not running, start it
+   docker compose up -d localstack  # Standard setup
+   # or
+   docker compose -f docker-compose-simple.yml up -d  # macOS setup
+   ```
+
+2. **Testing LocalStack connectivity:**
+   ```bash
+   curl http://localhost:4566/health
+   
+   # Create a Kinesis stream manually
+   aws --endpoint-url=http://localhost:4566 kinesis create-stream --stream-name test-stream --shard-count 1
+   
+   # List streams
+   aws --endpoint-url=http://localhost:4566 kinesis list-streams
+   ```
 
 ### Python Issues
 
@@ -260,6 +367,8 @@ This will conduct throughput and latency tests for both producers and consumers,
    pip install -r requirements.txt
    
    # If using a virtual environment, make sure it's activated
+   source venv/bin/activate  # Linux/macOS
+   venv\Scripts\activate     # Windows
    ```
 
 2. **Permission errors on Linux/macOS:**
@@ -270,35 +379,29 @@ This will conduct throughput and latency tests for both producers and consumers,
 
 ## Cleaning Up
 
-When you're done with the lab, clean up resources to avoid unnecessary charges:
-
-1. Stop the Docker containers:
+### Standard Cleanup (Windows/Linux)
 
 ```bash
-docker-compose down
+# Stop all Docker containers
+docker compose down
 ```
 
-2. Delete the Kinesis streams:
+### macOS Cleanup
+
+If you used the macOS-specific setup:
 
 ```bash
-aws kinesis delete-stream --stream-name data-stream
-aws kinesis delete-stream --stream-name analytics
+# Option 1: Use the provided cleanup script
+./stop_lab.sh
+
+# Option 2: Manual cleanup
+# Stop Kafka and ZooKeeper
+pkill -f kafka
+pkill -f zookeeper
+
+# Stop LocalStack
+docker compose -f docker-compose-simple.yml down
 ```
-
-3. Verify the streams have been deleted:
-
-```bash
-aws kinesis list-streams
-```
-
-## Understanding the Lab Files
-
-- `docker-compose.yml` - Docker configuration for Kafka
-- `requirements.txt` - Python dependencies
-- `config.py` - Configuration for Kafka and Kinesis
-- `kafka_examples.py` - Examples for Kafka producer, consumer, and analytics
-- `kinesis_examples.py` - Examples for Kinesis producer, consumer, and analytics
-- `kafka_to_kinesis.py` - Example showing how to bridge Kafka to Kinesis
 
 ## Additional Resources
 

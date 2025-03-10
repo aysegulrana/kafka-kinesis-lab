@@ -26,38 +26,70 @@ from config import get_kafka_config
 
 # --- KAFKA PRODUCER ---
 def kafka_producer_example():
-    """Example implementation of a Kafka producer."""
+    """Example implementation of a Kafka producer with network diagnostics."""
     print("\n====== KAFKA PRODUCER EXAMPLE ======")
     
     # Get configuration
     config = get_kafka_config()
     
-    # Create a producer that serializes data as JSON
-    producer = KafkaProducer(
-        bootstrap_servers=config['bootstrap_servers'],
-        value_serializer=lambda v: json.dumps(v).encode('utf-8'),
-        # Kafka-specific configurations
-        acks='all',                 # Wait for all replicas to acknowledge
-        retries=3,                  # Retry failed sends
-        linger_ms=5,                # Small delay to batch messages
-        batch_size=16384,           # Batch size in bytes
-        compression_type='gzip'     # Compress messages
-    )
-    
-    def generate_data():
-        """Generate a sample data record."""
-        return {
-            'id': str(uuid.uuid4()),
-            'timestamp': datetime.now().isoformat(),
-            'value': random.randint(1, 100),
-            'category': random.choice(['A', 'B', 'C']),
-            'metadata': {
-                'source': 'kafka-producer',
-                'version': '1.0'
-            }
-        }
-    
     try:
+        from kafka.errors import KafkaError
+        import socket
+        
+        print(f"Attempting to connect to bootstrap servers: {config['bootstrap_servers']}")
+        
+        # Enhanced connection check with more detailed error reporting
+        def check_connection(host, port):
+            try:
+                print(f"Attempting socket connection to {host}:{port}")
+                sock = socket.create_connection((host, port), timeout=10)
+                sock.close()
+                return True
+            except Exception as e:
+                print(f"Connection error to {host}:{port}: {type(e).__name__} - {e}")
+                return False
+        
+        # Verify network connectivity
+        connection_successful = False
+        for server in config['bootstrap_servers']:
+            host, port = server.split(':')
+            is_connected = check_connection(host, int(port))
+            print(f"Server {server}: {'Connected' if is_connected else 'Not Connected'}")
+            if is_connected:
+                connection_successful = True
+        
+        if not connection_successful:
+            raise ConnectionError("Unable to connect to any bootstrap servers")
+        
+        # Create producer with extensive configuration
+        from kafka import KafkaProducer
+        
+        producer = KafkaProducer(
+            bootstrap_servers=config['bootstrap_servers'],
+            value_serializer=lambda v: json.dumps(v).encode('utf-8'),
+            # Robust configuration
+            acks='all',             # Wait for all replicas to acknowledge
+            retries=3,               # Number of retry attempts
+            retry_backoff_ms=1000,   # Wait between retries
+            request_timeout_ms=30000,# Longer timeout
+            linger_ms=5,             # Small delay to batch messages
+            batch_size=16384,        # Batch size in bytes
+            compression_type='gzip'  # Compress messages
+        )
+        
+        def generate_data():
+            """Generate a sample data record."""
+            return {
+                'id': str(uuid.uuid4()),
+                'timestamp': datetime.now().isoformat(),
+                'value': random.randint(1, 100),
+                'category': random.choice(['A', 'B', 'C']),
+                'metadata': {
+                    'source': 'kafka-producer',
+                    'version': '1.0'
+                }
+            }
+        
         print("Sending messages to Kafka topic:", config['topic'])
         for i in range(10):  # Send 10 messages
             data = generate_data()
@@ -65,25 +97,35 @@ def kafka_producer_example():
             # Kafka allows specifying a partition key for custom routing
             partition_key = data['category'].encode('utf-8')
             
-            # Send the message to the topic with the specified key
-            future = producer.send(config['topic'], key=partition_key, value=data)
+            try:
+                # Send the message to the topic with the specified key
+                print(f"Attempting to send message {i+1}")
+                future = producer.send(config['topic'], key=partition_key, value=data)
+                
+                # The result() method blocks until the message is sent (or fails)
+                record_metadata = future.get(timeout=30)
+                
+                print(f"Message {i+1} sent successfully to {record_metadata.topic} "
+                      f"partition {record_metadata.partition} "
+                      f"offset {record_metadata.offset}")
             
-            # The result() method blocks until the message is sent (or fails)
-            record_metadata = future.get(timeout=10)
-            
-            print(f"Message {i+1} sent to {record_metadata.topic} "
-                  f"partition {record_metadata.partition} "
-                  f"offset {record_metadata.offset}")
+            except Exception as send_err:
+                print(f"Error sending message {i+1}: {type(send_err).__name__} - {send_err}")
+                import traceback
+                traceback.print_exc()
             
             time.sleep(0.5)
     
     except Exception as e:
-        print(f"Error in producer: {e}")
+        print(f"Unexpected error in producer: {type(e).__name__} - {e}")
+        import traceback
+        traceback.print_exc()
     
     finally:
         # Always remember to flush and close
-        producer.flush()
-        producer.close()
+        if 'producer' in locals():
+            producer.flush()
+            producer.close()
         print("Producer closed.")
 
 # --- KAFKA CONSUMER ---

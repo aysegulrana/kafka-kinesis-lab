@@ -4,9 +4,8 @@ Configuration settings for Kafka and Kinesis.
 
 import os
 
-# Kafka Configuration
 KAFKA_CONFIG = {
-    'bootstrap_servers': ['localhost:9092'],
+    'bootstrap_servers': ['localhost:29092'],  # Use the container's internal IP
     'topic': 'data-stream',
     'group_id': 'data-processing-group',
     'client_id': 'kafka-python-client',
@@ -14,21 +13,17 @@ KAFKA_CONFIG = {
 }
 
 # Kinesis Configuration
-# Reduces resource usage to fit within Free Tier limits
+# Set to use LocalStack by default to avoid AWS charges
 KINESIS_CONFIG = {
     'stream_name': 'data-stream',
     'region_name': os.environ.get('AWS_DEFAULT_REGION', 'us-east-1'),
-    'aws_access_key_id': os.environ.get('AWS_ACCESS_KEY_ID', 'YOUR_ACCESS_KEY'),
-    'aws_secret_access_key': os.environ.get('AWS_SECRET_ACCESS_KEY', 'YOUR_SECRET_KEY'),
-    'shard_count': 1,  # Reduced to 1 shard to stay within Free Tier
+    'aws_access_key_id': os.environ.get('AWS_ACCESS_KEY_ID', 'test'),
+    'aws_secret_access_key': os.environ.get('AWS_SECRET_ACCESS_KEY', 'test'),
+    'shard_count': 1,
     'analytics_stream': 'analytics',
-    # Set to True to use local mock instead of actual AWS Kinesis
-    'use_localstack': os.environ.get('USE_LOCALSTACK', 'True').lower() in ('true', 't', '1', 'yes', 'y')
+    'use_localstack': True,
+    'endpoint_url': 'http://localhost:4566'  # LocalStack endpoint
 }
-
-# LocalStack endpoint (if using mock AWS services)
-if KINESIS_CONFIG['use_localstack']:
-    KINESIS_CONFIG['endpoint_url'] = 'http://localhost:4566'  # LocalStack default endpoint
 
 # Kafka to Kinesis Bridge Configuration
 BRIDGE_CONFIG = {

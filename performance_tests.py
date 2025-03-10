@@ -34,20 +34,13 @@ def create_kinesis_client():
     }
     
     # If using LocalStack, add endpoint URL and dummy credentials
-    if config['use_localstack']:
-        print("Using LocalStack for AWS services (no AWS charges)")
-        client_kwargs.update({
-            'endpoint_url': config['endpoint_url'],
-            'aws_access_key_id': 'test',
-            'aws_secret_access_key': 'test',
-        })
-    else:
-        print("WARNING: Using real AWS services - charges may apply")
-        client_kwargs.update({
-            'aws_access_key_id': config['aws_access_key_id'],
-            'aws_secret_access_key': config['aws_secret_access_key'],
-        })
-    
+    print("Using LocalStack for AWS services (no AWS charges)")
+    client_kwargs.update({
+        'endpoint_url': config['endpoint_url'],
+        'aws_access_key_id': 'test',
+        'aws_secret_access_key': 'test',
+    })
+
     return boto3.client('kinesis', **client_kwargs)
 
 def ensure_stream_exists(client, stream_name, shard_count):
@@ -95,12 +88,17 @@ def test_kafka_producer_performance(bootstrap_servers, topic, num_messages, mess
     
     # Create Kafka producer
     producer = KafkaProducer(
-        bootstrap_servers=bootstrap_servers,
-        value_serializer=lambda v: json.dumps(v).encode('utf-8'),
-        batch_size=16384,
-        linger_ms=5,
-        acks='1'  # For better performance
-    )
+            bootstrap_servers=bootstrap_servers,
+            value_serializer=lambda v: json.dumps(v).encode('utf-8'),
+            # Robust configuration
+            acks='all',             # Wait for all replicas to acknowledge
+            retries=3,               # Number of retry attempts
+            retry_backoff_ms=1000,   # Wait between retries
+            request_timeout_ms=30000,# Longer timeout
+            linger_ms=5,             # Small delay to batch messages
+            batch_size=16384,        # Batch size in bytes
+            compression_type='gzip'  # Compress messages
+        )
     
     latencies = []
     start_time = time.time()
