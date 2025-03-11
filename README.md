@@ -157,17 +157,10 @@ If you prefer to set up manually on macOS:
 
 2. Start the services:
    ```bash
-   # Start LocalStack
-   docker compose -f docker-compose-simple.yml up -d
-   
-   # Start ZooKeeper
-   zookeeper-server-start /usr/local/etc/kafka/zookeeper.properties &
-   
-   # Wait for ZooKeeper to start
-   sleep 10
-   
-   # Start Kafka
-   kafka-server-start /usr/local/etc/kafka/server.properties &
+   docker compose up -d 
+
+   #check if all three services (kafka, zookeeper, localstack) are running
+   docker ps
    ```
 
 ## Running the Examples
