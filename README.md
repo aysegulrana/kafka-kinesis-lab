@@ -150,12 +150,7 @@ After running the setup script, you can:
 
 If you prefer to set up manually on macOS:
 
-1. Install Kafka using Homebrew:
-   ```bash
-   brew install kafka
-   ```
-
-2. Start the services:
+Start the services:
    ```bash
    docker compose up -d 
 

@@ -7,7 +7,7 @@ import os
 KAFKA_CONFIG = {
     'bootstrap_servers': ['localhost:29092'],  # Use the container's internal IP
     'topic': 'data-stream',
-    'group_id': 'data-processing-group',
+    'group_id': 'data-processing-group', # Consumer group ID
     'client_id': 'kafka-python-client',
     'analytics_topic': 'analytics'
 }
